@@ -1,4 +1,4 @@
-import crypto from 'node:crypto'
+import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 
 const userSchema = new mongoose.Schema({
@@ -9,18 +9,12 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 userSchema.statics.hashPassword = (password) => {
-  const salt = crypto.randomBytes(16).toString('hex')
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex')
-  return `${salt}:${hash}`
+  return bcrypt.hashSync(password, 12)
 }
 
 userSchema.statics.verifyPassword = (password, storedPassword) => {
-  const [salt, storedHash] = storedPassword.split(':')
-  if (!salt || !storedHash) return false
-
-  const derivedHash = crypto.scryptSync(password, salt, 64)
-  const expectedHash = Buffer.from(storedHash, 'hex')
-  return expectedHash.length === derivedHash.length && crypto.timingSafeEqual(expectedHash, derivedHash)
+  if (!storedPassword || typeof storedPassword !== 'string') return false
+  return bcrypt.compareSync(password, storedPassword)
 }
 
 const User = mongoose.model('User', userSchema)

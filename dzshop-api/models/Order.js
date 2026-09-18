@@ -1,28 +1,19 @@
 import mongoose from 'mongoose'
 
 const orderItemSchema = new mongoose.Schema({
-  productId: { type: String, required: true },
-  title: { type: String, required: true },
-  price: { type: Number, required: true },
-  quantity: { type: Number, required: true, min: 1 },
-  image: { type: String }
-}, { _id: false })
-
-const shippingAddressSchema = new mongoose.Schema({
-  phone: { type: String, required: true },
-  wilaya: { type: String, required: true },
-  city: { type: String, required: true },
-  postcode: { type: String, required: true },
-  district: { type: String, required: true },
-  street: { type: String }
+  nom: { type: String, required: true, trim: true },
+  prix: { type: Number, required: true, min: 0 },
+  qte: { type: Number, required: true, min: 1 }
 }, { _id: false })
 
 const orderSchema = new mongoose.Schema({
-  userId: { type: String, required: true, index: true },
-  items: { type: [orderItemSchema], required: true },
-  shippingAddress: { type: shippingAddressSchema, required: true },
-  totalPrice: { type: Number, required: true, min: 0 },
-  status: { type: String, enum: ['En attente', 'Confirmée', 'Livrée', 'Annulée'], default: 'En attente' }
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  articles: { type: [orderItemSchema], required: true, validate: (articles) => articles.length > 0 },
+  total: { type: Number, required: true, min: 0 },
+  adresse: { type: String, required: true, trim: true },
+  telephone: { type: String, trim: true },
+  wilaya: { type: String, trim: true },
+  statut: { type: String, enum: ['En attente', 'Expédiée', 'Livrée'], default: 'En attente' }
 }, { timestamps: true })
 
 const Order = mongoose.model('Order', orderSchema)

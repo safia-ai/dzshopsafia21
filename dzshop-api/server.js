@@ -2,29 +2,79 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import dotenv from 'dotenv'
-import Order from './models/Order.js'
 import User from './models/User.js'
 import productRoutes, { vendorRouter } from './routes/products.js'
+import orderRoutes from './routes/orders.js'
+import userRoutes from './routes/users.js'
 import { createToken, requireAuth, requireAdmin } from './middleware/auth.js'
 
 dotenv.config()
 
 const app = express()
 
-app.use(cors())
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+].filter(Boolean)
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+      return
+    }
+    callback(new Error('Origin not allowed by CORS'))
+  },
+  credentials: true
+}))
 app.use(express.json())
+
+if (!process.env.JWT_SECRET) {
+  console.warn('JWT_SECRET is not set. Falling back to a local development secret.')
+}
+
+const normalizeRole = (role) => {
+  if (role === 'vendor') return 'vendor'
+  if (role === 'admin') return 'admin'
+  return 'user'
+}
+
+async function ensureAdminUser() {
+  const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+  if (!configuredAdminEmail) return
+
+  const existingAdmin = await User.findOne({ email: configuredAdminEmail })
+  if (existingAdmin) {
+    if (existingAdmin.role !== 'admin') {
+      existingAdmin.role = 'admin'
+      await existingAdmin.save()
+    }
+    return
+  }
+
+  const password = 'admin123'
+  await User.create({
+    name: process.env.ADMIN_NAME || 'Admin',
+    email: configuredAdminEmail,
+    password: User.hashPassword(password),
+    role: 'admin'
+  })
+}
 
 // الاتصال بـ MongoDB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connecté ✅'))
+  .then(async () => {
+    console.log('MongoDB connecté ✅')
+    await ensureAdminUser()
+  })
   .catch((err) => console.log('Erreur MongoDB : ' + err.message))
 
-// المسار الرئيسي
 app.get('/', (req, res) => {
   res.json({ message: 'API DZShop en ligne' })
 })
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body
   const normalizedEmail = email?.trim().toLowerCase()
 
@@ -32,38 +82,29 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ message: 'Email ou mot de passe incorrect.' })
   }
 
-  User.findOne({ email: normalizedEmail }).select('+password')
-    .then(async (account) => {
-      let userAccount = account
+  try {
+    const account = await User.findOne({ email: normalizedEmail }).select('+password')
+    if (!account || !User.verifyPassword(password, account.password)) {
+      return res.status(401).json({ message: 'Email ou mot de passe incorrect.' })
+    }
 
-      // Preserve the existing demo admin account while storing it in MongoDB.
-      if (!userAccount && normalizedEmail === 'admin@dzshop.dz' && password === '123456') {
-        userAccount = await User.create({
-          name: 'Admin',
-          email: normalizedEmail,
-          password: User.hashPassword(password),
-          role: 'admin'
-        })
-      }
+    if (process.env.ADMIN_EMAIL && normalizedEmail === process.env.ADMIN_EMAIL.trim().toLowerCase() && account.role !== 'admin') {
+      account.role = 'admin'
+      await account.save()
+    }
 
-      if (!userAccount || !User.verifyPassword(password, userAccount.password)) {
-        return res.status(401).json({ message: 'Email ou mot de passe incorrect.' })
-      }
+    const user = {
+      id: account._id,
+      nom: account.name,
+      name: account.name,
+      email: account.email,
+      role: account.role
+    }
 
-      const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
-      const configuredAdminName = (process.env.ADMIN_NAME || 'Beckham').trim().toLowerCase()
-      const isConfiguredAdmin = normalizedEmail === configuredAdminEmail
-        || userAccount.name.trim().toLowerCase() === configuredAdminName
-
-      if (isConfiguredAdmin && userAccount.role !== 'admin') {
-        userAccount.role = 'admin'
-        await userAccount.save()
-      }
-
-      const user = { id: userAccount._id, nom: userAccount.name, name: userAccount.name, email: userAccount.email, role: userAccount.role }
-      return res.json({ user, token: createToken(user) })
-    })
-    .catch((err) => res.status(500).json({ message: err.message }))
+    return res.json({ user, token: createToken(user) })
+  } catch (err) {
+    return res.status(500).json({ message: err.message })
+  }
 })
 
 app.post('/api/auth/register', async (req, res) => {
@@ -82,9 +123,17 @@ app.post('/api/auth/register', async (req, res) => {
       name: (name || nom).trim(),
       email: normalizedEmail,
       password: User.hashPassword(password),
-      role: role === 'vendor' ? 'vendor' : 'user'
+      role: normalizeRole(role)
     })
-    const user = { id: createdUser._id, nom: createdUser.name, name: createdUser.name, email: createdUser.email, role: createdUser.role }
+
+    const user = {
+      id: createdUser._id,
+      nom: createdUser.name,
+      name: createdUser.name,
+      email: createdUser.email,
+      role: createdUser.role
+    }
+
     return res.status(201).json({ user, token: createToken(user) })
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: 'Cette adresse email est déjà utilisée.' })
@@ -92,58 +141,14 @@ app.post('/api/auth/register', async (req, res) => {
   }
 })
 
-app.post('/api/orders', requireAuth, async (req, res) => {
-  try {
-    const { items, shippingAddress, totalPrice } = req.body
-    if (!Array.isArray(items) || items.length === 0 || !shippingAddress || totalPrice === undefined) {
-      return res.status(400).json({ message: 'Données de commande incomplètes.' })
-    }
-
-    const order = await Order.create({
-      userId: req.user.sub,
-      items,
-      shippingAddress,
-      totalPrice,
-      status: 'En attente'
-    })
-
-    return res.status(201).json(order)
-  } catch (err) {
-    return res.status(400).json({ message: err.message })
-  }
-})
-
-app.get('/api/orders', async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 })
-    return res.json(orders)
-  } catch (err) {
-    return res.status(500).json({ message: err.message })
-  }
-})
-
-app.patch('/api/orders/:id', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const allowedStatuses = ['En attente', 'Confirmée', 'Livrée', 'Annulée']
-    if (!allowedStatuses.includes(req.body.status)) {
-      return res.status(400).json({ message: 'Statut de commande invalide.' })
-    }
-
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true, runValidators: true }
-    )
-    if (!order) return res.status(404).json({ message: 'Commande introuvable.' })
-    return res.json(order)
-  } catch (err) {
-    return res.status(400).json({ message: err.message })
-  }
-})
-
-// 1. جلب كل المنتجات من MongoDB
+app.use('/api/orders', orderRoutes)
+app.use('/api/users', userRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/vendor/products', vendorRouter)
+
+app.get('/api/me', requireAuth, async (req, res) => {
+  return res.json({ user: { id: req.user._id, email: req.user.email, role: req.user.role, name: req.user.name || req.user.nom } })
+})
 
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {

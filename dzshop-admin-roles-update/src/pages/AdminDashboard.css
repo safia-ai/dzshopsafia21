@@ -1,0 +1,60 @@
+.admin-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 52px 24px 80px;
+  color: #172033;
+}
+
+.admin-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 30px; }
+.admin-eyebrow, .panel-kicker { color: #64748b; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.16em; }
+.admin-heading h1 { margin: 8px 0; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -0.04em; }
+.admin-heading p { margin: 0; color: #64748b; }
+.admin-store-link { color: #172033; font-size: 0.88rem; font-weight: 700; text-decoration: none; border-bottom: 1px solid #172033; padding-bottom: 4px; }
+.admin-alert { margin-bottom: 18px; padding: 12px 16px; border-radius: 8px; font-size: 0.88rem; }
+.admin-alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.admin-alert-error { background: #fff1f2; border: 1px solid #fecdd3; color: #be123c; }
+.admin-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 22px; }
+.admin-stats div { padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
+.admin-stats span { display: block; color: #64748b; font-size: 0.8rem; margin-bottom: 8px; }
+.admin-stats strong { font-size: 1.7rem; }
+.admin-panel { overflow: hidden; margin-bottom: 22px; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; }
+.admin-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px 24px; border-bottom: 1px solid #e5e7eb; }
+.admin-panel-heading h2 { margin: 5px 0 0; font-size: 1.2rem; }
+.panel-count { color: #64748b; font-size: 0.82rem; }
+.admin-empty { padding: 36px 24px; color: #64748b; text-align: center; }
+.orders-table-wrap { overflow-x: auto; }
+.orders-table { width: 100%; min-width: 930px; border-collapse: collapse; text-align: left; }
+.orders-table th { padding: 13px 18px; background: #f8fafc; color: #64748b; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
+.orders-table td { padding: 16px 18px; border-top: 1px solid #f1f5f9; color: #475569; font-size: 0.84rem; vertical-align: middle; }
+.orders-table td strong { color: #172033; }
+.orders-table td small { display: block; margin-top: 4px; color: #94a3b8; }
+.status-select { border: 0; border-radius: 20px; padding: 8px 10px; font: inherit; font-size: 0.76rem; font-weight: 700; cursor: pointer; outline: none; }
+.status-en-attente { background: #fef3c7; color: #92400e; }
+.status-confirmée { background: #dbeafe; color: #1d4ed8; }
+.status-livrée { background: #dcfce7; color: #166534; }
+.status-annulée { background: #ffe4e6; color: #be123c; }
+.role-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.74rem; font-weight: 700; }
+.role-client { background: #dbeafe; color: #1d4ed8; }
+.role-vendeur { background: #ffedd5; color: #c2410c; }
+.role-admin { background: #ede9fe; color: #6d28d9; }
+.admin-lower-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.product-form { display: grid; gap: 16px; padding: 22px 24px 26px; }
+.product-form label { display: grid; gap: 7px; color: #475569; font-size: 0.78rem; font-weight: 700; }
+.product-form input { width: 100%; box-sizing: border-box; padding: 12px 13px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; outline: none; }
+.product-form input:focus { border-color: #172033; box-shadow: 0 0 0 3px #f1f5f9; }
+.product-form button { margin-top: 4px; padding: 13px; border: 0; border-radius: 8px; background: #172033; color: #fff; font-weight: 800; cursor: pointer; }
+.catalogue-list { padding: 8px 24px 16px; }
+.catalogue-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+.catalogue-item:last-child { border-bottom: 0; }
+.catalogue-item img { width: 42px; height: 42px; border-radius: 7px; object-fit: cover; background: #f8fafc; }
+.catalogue-item div { min-width: 0; flex: 1; }
+.catalogue-item strong, .catalogue-item span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catalogue-item strong { color: #172033; font-size: 0.84rem; }
+.catalogue-item span { margin-top: 4px; color: #64748b; font-size: 0.76rem; }
+.catalogue-item button { width: 28px; height: 28px; border: 0; border-radius: 50%; background: #fff1f2; color: #be123c; font-size: 1.15rem; cursor: pointer; }
+
+@media (max-width: 760px) {
+  .admin-page { padding: 36px 16px 60px; }
+  .admin-heading { align-items: flex-start; flex-direction: column; }
+  .admin-stats, .admin-lower-grid { grid-template-columns: 1fr; }
+}

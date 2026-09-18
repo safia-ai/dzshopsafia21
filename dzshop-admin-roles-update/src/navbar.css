@@ -1,0 +1,142 @@
+/*.bar-navigation {
+    background-color:#212529;
+    height: 80px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding:15px;
+}
+.logo {
+    color: white;
+    font-size: 25px;
+    font-family: 'Lucida Sans', sans-serif;
+    font-weight: bold;
+    margin-left: 30px;
+}
+.liste {
+    display: flex;
+    gap: 50px;
+    list-style: none;
+    font-size: 25px;
+    font-family: 'Lucida Sans', sans-serif;
+    font-weight: bold;
+    margin-left: 100px;
+}
+.liste a:hover
+{
+    color :rgba(46, 196, 201, 0.445)
+}
+.buttons {
+    display: flex;
+    gap: 15px;
+    margin-left: auto;
+    margin-right: 30px;
+}
+
+.liste a {
+    text-decoration: none;
+    color: white;
+}
+
+.bar-navigation button {
+    border-radius: 5px;
+    background-color: #212529;
+    color: white;
+    font-size: 20px;
+    height: 50px;
+    width: 150px;
+  border-color: white;
+}
+
+.bar-navigation button:hover {
+    background-color: white;
+    color: rgb(66, 63, 62);
+}
+*/
+.bar-navigation {
+    background-color: #212529;
+    height: 80px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 0 30px;
+    box-sizing: border-box;
+}
+
+.logo {
+    color: white;
+    font-size: 25px;
+    font-family: 'Lucida Sans', sans-serif;
+    font-weight: bold;
+    margin-right: 50px; 
+}
+
+.liste {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+
+    list-style: none;
+    font-size: 20px;
+    font-family: 'Lucida Sans', sans-serif;
+    font-weight: bold;
+
+    margin: 0;
+    padding: 0;
+}
+
+.liste a {
+    text-decoration: none;
+    color:#6c757d;
+}
+
+.liste a:hover {
+    color:white;
+}
+
+.buttons {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+    margin-left: 500px;
+}
+
+.bar-navigation button {
+    border-radius: 5px;
+    background-color: #212529;
+    color: white;
+    font-size: 20px;
+    height: 50px;
+    width: 150px;
+    border-color: white;
+}
+
+.bar-navigation button:hover {
+    background-color: white;
+    color: rgb(66, 63, 62);
+}
+
+.bar-navigation a {
+  color:#6c757d;
+  text-decoration: none;
+}
+
+.bar-navigation a:visited {
+  color:#6c757d;
+}
+
+.bar-navigation a:hover {
+  color: #ffffff;
+}
+
+.bar-navigation a:active {
+  color: #6c757d;
+}

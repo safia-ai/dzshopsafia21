@@ -1,0 +1,216 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: white;
+  color: #222;
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+
+.dashboard {
+  width: 100%;
+  min-height: 100vh;
+
+  /* Décale toute la page sous la navbar */
+  padding-top: 70px;
+}
+
+/* =========================
+   HERO
+========================= */
+
+.dashboard-hero {
+  width: 100%;
+  min-height: 300px;
+
+  background: #1677f7;
+  color: white;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  text-align: center;
+
+  padding: 25px 20px 45px;
+}
+
+.dashboard-hero h1 {
+  font-size: 42px;
+  font-weight: 700;
+color: white;
+  margin-bottom: 10px;
+}
+
+.dashboard-hero p {
+  font-size: 15px;
+  color: #d6e7ff;
+
+  margin-bottom: 22px;
+}
+
+.discover-btn {
+  background: white;
+  color: #222;
+
+  border: none;
+  border-radius: 5px;
+
+  padding: 11px 18px;
+
+  font-size: 20px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.discover-btn:hover {
+  background: #f5f5f5;
+}
+
+/* =========================
+   CONTENT
+========================= */
+
+.dashboard-content {
+  width: 100%;
+  max-width: 1000px;
+
+  margin: auto;
+
+  padding: 80px 20px 70px;
+}
+
+/* =========================
+   FEATURES
+========================= */
+
+.dashboard-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 120px;
+
+  text-align: center;
+
+  margin-bottom: 45px;
+}
+
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.feature-icon {
+  font-size: 35px;
+
+  margin-bottom: 10px;
+}
+
+.feature-card h3 {
+  font-size: 15px;
+  font-weight: bold;
+
+  margin-bottom: 7px;
+}
+
+.feature-card p {
+  color: #777;
+
+  font-size: 15px;
+}
+
+/* =========================
+   PRODUCTS
+========================= */
+
+.products-section {
+  margin-top: 15px;
+}
+
+.products-header {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+}
+
+.products-header h2 {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.products-btn {
+  background: white;
+
+  border: 1px solid #5d9ac3;
+  border-radius: 4px;
+
+  color: #4283b0;
+
+  padding: 7px 11px;
+
+  font-size: 20px;
+
+  cursor: pointer;
+ margin-top:  40px;
+}
+
+.products-btn:hover {
+  background: #1677f7;
+  border-color: #1677f7;
+  color: white;
+}
+
+/* =========================
+   TABLETTE
+========================= */
+
+@media (max-width: 768px) {
+  .dashboard-hero h1 {
+    font-size: 32px;
+  }
+
+  .dashboard-features {
+    grid-template-columns: 1fr;
+
+    gap: 35px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 480px) {
+  .dashboard-hero h1 {
+    font-size: 27px;
+  }
+
+  .dashboard-hero p {
+    font-size: 13px;
+  }
+
+  .products-header {
+    gap: 15px;
+  }
+
+  .products-header h2 {
+    font-size: 20px;
+  }
+
+  .products-btn {
+    white-space: nowrap;
+  }
+}
