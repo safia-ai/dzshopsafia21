@@ -1,16 +1,45 @@
-import { createContext, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useEffect, useState } from 'react';
 import api, { setAuthToken } from './api/axios';
+
+const normalizeRole = (role) => {
+  if (role === 'vendor') return 'vendor';
+  if (role === 'admin') return 'admin';
+  return 'client';
+};
+
+const readStoredSession = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem('dzshop_session') || 'null');
+    if (!stored?.token || !stored?.user) return null;
+    return { ...stored, user: { ...stored.user, role: normalizeRole(stored.user.role) } };
+  } catch {
+    return null;
+  }
+};
 
 export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(() => readStoredSession()?.user || null);
+  const [token, setToken] = useState(() => readStoredSession()?.token || null);
+
+  useEffect(() => {
+    if (user && token) {
+      setAuthToken(token);
+      localStorage.setItem('dzshop_session', JSON.stringify({ user, token }));
+    } else {
+      setAuthToken(null);
+      localStorage.removeItem('dzshop_session');
+    }
+  }, [user, token]);
 
   const saveSession = (session) => {
-    setUser(session.user);
+    const nextUser = { ...session.user, role: normalizeRole(session.user?.role) };
+    setUser(nextUser);
     setToken(session.token);
     setAuthToken(session.token);
+    localStorage.setItem('dzshop_session', JSON.stringify({ user: nextUser, token: session.token }));
   };
 
   const login = async (email, password) => {
@@ -20,6 +49,16 @@ export function AuthProvider({ children }) {
       return { success: true, user: result.user };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Impossible de contacter le serveur.' };
+    }
+  };
+
+  const loginWithGoogle = async (credential) => {
+    try {
+      const { data: result } = await api.post('/auth/google', { credential });
+      saveSession(result);
+      return { success: true, user: result.user };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || 'Connexion Google impossible.' };
     }
   };
 
@@ -42,10 +81,11 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     setAuthToken(null);
+    localStorage.removeItem('dzshop_session');
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

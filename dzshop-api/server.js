@@ -2,15 +2,17 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import dotenv from 'dotenv'
+import { OAuth2Client } from 'google-auth-library'
 import User from './models/User.js'
 import productRoutes, { vendorRouter } from './routes/products.js'
 import orderRoutes from './routes/orders.js'
 import userRoutes from './routes/users.js'
-import { createToken, requireAuth, requireAdmin } from './middleware/auth.js'
+import { createToken, requireAuth } from './middleware/auth.js'
 
 dotenv.config()
 
 const app = express()
+const googleClient = new OAuth2Client()
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
@@ -31,41 +33,45 @@ app.use(cors({
 app.use(express.json())
 
 if (!process.env.JWT_SECRET) {
-  console.warn('JWT_SECRET is not set. Falling back to a local development secret.')
+  throw new Error('JWT_SECRET must be set in the backend environment.')
 }
 
 const normalizeRole = (role) => {
   if (role === 'vendor') return 'vendor'
-  if (role === 'admin') return 'admin'
-  return 'user'
+  return 'client'
 }
 
 async function ensureAdminUser() {
-  const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
-  if (!configuredAdminEmail) return
+  const adminCount = await User.countDocuments({ role: 'admin' })
+  if (adminCount > 0) return
 
-  const existingAdmin = await User.findOne({ email: configuredAdminEmail })
-  if (existingAdmin) {
-    if (existingAdmin.role !== 'admin') {
-      existingAdmin.role = 'admin'
-      await existingAdmin.save()
-    }
+  const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+  const configuredAdminPassword = process.env.ADMIN_INITIAL_PASSWORD
+  if (!configuredAdminEmail || !configuredAdminPassword) {
+    console.warn('No initial admin bootstrap configured. Set ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD only for first setup.')
     return
   }
 
-  const password = 'admin123'
+  const existingAdmin = await User.findOne({ email: configuredAdminEmail })
+  if (existingAdmin) return
+
   await User.create({
     name: process.env.ADMIN_NAME || 'Admin',
     email: configuredAdminEmail,
-    password: User.hashPassword(password),
+    password: User.hashPassword(configuredAdminPassword),
     role: 'admin'
   })
+}
+
+async function migrateLegacyRoles() {
+  await User.updateMany({ role: { $nin: ['client', 'vendor', 'admin'] } }, { $set: { role: 'client' } })
 }
 
 // الاتصال بـ MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('MongoDB connecté ✅')
+    await migrateLegacyRoles()
     await ensureAdminUser()
   })
   .catch((err) => console.log('Erreur MongoDB : ' + err.message))
@@ -86,11 +92,6 @@ app.post('/api/auth/login', async (req, res) => {
     const account = await User.findOne({ email: normalizedEmail }).select('+password')
     if (!account || !User.verifyPassword(password, account.password)) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect.' })
-    }
-
-    if (process.env.ADMIN_EMAIL && normalizedEmail === process.env.ADMIN_EMAIL.trim().toLowerCase() && account.role !== 'admin') {
-      account.role = 'admin'
-      await account.save()
     }
 
     const user = {
@@ -153,4 +154,60 @@ app.get('/api/me', requireAuth, async (req, res) => {
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {
   console.log(`Serveur sur http://localhost:${PORT}`)
+})
+
+app.post('/api/auth/google', async (req, res) => {
+  const { credential } = req.body
+
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.status(503).json({ message: 'Google Authentication est indisponible.' })
+  }
+
+  if (!credential || typeof credential !== 'string') {
+    return res.status(400).json({ message: 'Credential Google manquant.' })
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    })
+    const payload = ticket.getPayload()
+
+    if (!payload?.sub || !payload.email || !payload.email_verified) {
+      return res.status(401).json({ message: 'Le compte Google doit fournir un email vérifié.' })
+    }
+
+    const normalizedEmail = payload.email.trim().toLowerCase()
+    let account = await User.findOne({ googleId: payload.sub })
+
+    if (!account) {
+      account = await User.findOne({ email: normalizedEmail })
+      if (account) {
+        account.googleId = payload.sub
+        await account.save()
+      }
+    }
+
+    if (!account) {
+      account = await User.create({
+        name: payload.name?.trim() || normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        googleId: payload.sub,
+        role: 'client'
+      })
+    }
+
+    const user = {
+      id: account._id,
+      nom: account.name,
+      name: account.name,
+      email: account.email,
+      role: account.role
+    }
+
+    return res.json({ user, token: createToken(user) })
+  } catch {
+    return res.status(401).json({ message: 'Credential Google invalide ou expiré.' })
+  }
 })

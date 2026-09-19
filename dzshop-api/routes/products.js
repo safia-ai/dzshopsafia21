@@ -5,7 +5,7 @@ import { authorizeRoles, requireAuth, requireAdmin } from '../middleware/auth.js
 const router = express.Router()
 export const vendorRouter = express.Router()
 
-const vendorProductFields = ['nom', 'description', 'prix', 'categorie', 'stock', 'image']
+const vendorProductFields = ['nom', 'description', 'prix', 'categorie', 'stock', 'image', 'isAdvertised']
 
 function pickProductFields(body) {
   return Object.fromEntries(vendorProductFields

@@ -2,11 +2,17 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 
 const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+const email = process.argv[2]?.trim().toLowerCase();
+
+if (!email) {
+  console.error('Usage: node make-vendor.js <email>');
+  process.exit(1);
+}
 
 try {
   await mongoose.connect(uri);
   const user = await mongoose.connection.collection('users').findOne({
-    email: { $regex: 'safiaelouar589@gmail.com', $options: 'i' }
+    email: { $regex: `^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
   });
 
   if (user) {

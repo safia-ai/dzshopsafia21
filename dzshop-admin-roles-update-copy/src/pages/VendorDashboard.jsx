@@ -1,10 +1,10 @@
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import './AdminDashboard.css';
 import './VendorDashboard.css';
 
-const apiUrl = 'http://localhost:5000';
+const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
 const defaultProductImage = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
 const emptyForm = { title: '', description: '', category: '', price: '', stock: '', image: '' };
 
@@ -24,11 +24,11 @@ export default function VendorDashboard() {
   // Cette route est censée renvoyer uniquement les produits appartenant au
   // vendeur connecté (le backend identifie le vendeur via le token, pas
   // besoin d'envoyer l'id manuellement).
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${apiUrl}/api/vendor/products`, { headers: authorizedHeaders });
+      const response = await fetch(`${apiUrl}/api/vendor/products`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Impossible de charger votre boutique.');
       setProducts(data);
@@ -37,11 +37,11 @@ export default function VendorDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    if (token) loadProducts();
-  }, [token]);
+    if (token) queueMicrotask(loadProducts);
+  }, [token, loadProducts]);
 
   const addProduct = async (event) => {
     event.preventDefault();

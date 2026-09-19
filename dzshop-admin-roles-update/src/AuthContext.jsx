@@ -1,11 +1,12 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useEffect, useState } from 'react';
 import api, { setAuthToken } from './api/axios';
 
 const normalizeRole = (role) => {
-  if (role === 'client') return 'user';
+  if (role === 'client') return 'client';
   if (role === 'vendor') return 'vendor';
   if (role === 'admin') return 'admin';
-  return 'user';
+  return 'client';
 };
 
 const readStoredSession = () => {
@@ -54,12 +55,22 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const loginWithGoogle = async (credential) => {
+    try {
+      const { data: result } = await api.post('/auth/google', { credential });
+      saveSession(result);
+      return { success: true, user: result.user };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || 'Connexion Google impossible.' };
+    }
+  };
+
   const register = async (nomOrData, emailArgument, passwordArgument) => {
     const registration = typeof nomOrData === 'object'
       ? nomOrData
       : { nom: nomOrData, email: emailArgument, password: passwordArgument };
     const { nom, email, password, role = 'client' } = registration;
-    const publicRole = role === 'vendor' ? 'vendor' : 'user';
+    const publicRole = role === 'vendor' ? 'vendor' : 'client';
     try {
       const { data: result } = await api.post('/auth/register', { nom, email, password, role: publicRole });
       if (result.token && result.user) saveSession(result);
@@ -77,7 +88,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

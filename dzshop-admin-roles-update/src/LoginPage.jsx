@@ -1,10 +1,11 @@
 import { useState, useContext } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
+import GoogleSignInButton from './GoogleSignInButton';
 import './LoginPage.css';
 
 export default function LoginPage() {
-  const { login } = useContext(AuthContext);
+  const { login, loginWithGoogle } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -12,16 +13,27 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [successMessage] = useState(location.state?.successMessage || '');
 
+  const redirectByRole = (nextUser) => {
+    if (nextUser?.role === 'admin') navigate('/admin');
+    else if (nextUser?.role === 'vendor') navigate('/vendor/dashboard');
+    else navigate('/');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const result = await login(email, password);
     if (result.success) {
-      if (result.user?.role === 'admin') navigate('/admin');
-      else if (result.user?.role === 'vendor') navigate('/vendor/dashboard');
-      else navigate('/');
+      redirectByRole(result.user);
     } else {
       setError(result.message);
     }
+  };
+
+  const handleGoogleCredential = async (credential) => {
+    setError('');
+    const result = await loginWithGoogle(credential);
+    if (result.success) redirectByRole(result.user);
+    else setError(result.message);
   };
 
   return (
@@ -66,7 +78,7 @@ export default function LoginPage() {
           </form>
 
           <div className="login-divider"><span>ou</span></div>
-          <button type="button" className="social-login"><strong>G</strong> Continuer avec Google</button>
+          <GoogleSignInButton onCredential={handleGoogleCredential} />
           <button type="button" className="social-login"><strong>●</strong> Continuer avec Apple</button>
 
           <p className="signup-prompt">Vous n'avez pas de compte ? <Link to="/register">Créer un compte</Link></p>

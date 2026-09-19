@@ -16,7 +16,11 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
 router.patch('/:id/role', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { role } = req.body
-    const nextRole = role === 'vendor' ? 'vendor' : 'user'
+    if (!['client', 'vendor'].includes(role)) {
+      return res.status(400).json({ message: 'Rôle invalide.' })
+    }
+
+    const nextRole = role
 
     const user = await User.findByIdAndUpdate(
       req.params.id,

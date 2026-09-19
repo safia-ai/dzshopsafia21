@@ -38,13 +38,14 @@ function MainApp() {
         setLoading(true);
         setError('');
 
-        const response = await fetch('http://localhost:5000/api/products');
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiBaseUrl}/products`);
         if (!response.ok) throw new Error('Impossible de charger les produits.');
 
         const products = await response.json();
         setProductsList(products.map((product, index) => ({
           ...product,
-          id: index + 1,
+          id: product._id || index + 1,
           title: product.title || product.nom,
           price: product.price ?? product.prix,
           category: product.category || product.categorie || 'Divers',
@@ -61,7 +62,7 @@ function MainApp() {
   }, []);
 
   const handleAddToCart = (productId, qty = 1) => {
-    const product = productsList.find((item) => item.id === Number(productId));
+    const product = productsList.find((item) => String(item.id) === String(productId));
     if (product) {
       for (let index = 0; index < qty; index += 1) addToCart(product);
     }
@@ -113,7 +114,7 @@ function MainApp() {
         <Route path="/panier" element={<CartPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/checkout" element={<PrivateRoute requiredRole="client"><CheckoutPage /></PrivateRoute>} />
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/admin" element={<PrivateRoute requiredRole="admin"><AdminDashboard /></PrivateRoute>} />
         <Route path="/vendor/dashboard" element={<PrivateRoute requiredRole={['vendor', 'admin']}><VendorDashboard /></PrivateRoute>} />

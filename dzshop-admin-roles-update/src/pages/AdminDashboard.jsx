@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import './AdminDashboard.css';
@@ -28,14 +28,14 @@ export default function AdminDashboard() {
 
   const authorizedHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const [ordersResponse, productsResponse, usersResponse] = await Promise.all([
-        fetch(`${apiUrl}/api/orders`, { headers: authorizedHeaders }),
+        fetch(`${apiUrl}/api/orders`, { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
         fetch(`${apiUrl}/api/products`),
-        fetch(`${apiUrl}/api/users`, { headers: authorizedHeaders })
+        fetch(`${apiUrl}/api/users`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       ]);
       const ordersData = await ordersResponse.json();
       const productsData = await productsResponse.json();
@@ -50,11 +50,11 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    if (token) loadDashboard();
-  }, [token]);
+    if (token) queueMicrotask(loadDashboard);
+  }, [token, loadDashboard]);
 
   const updateUserRole = async (userId, role) => {
     setError('');
@@ -154,7 +154,7 @@ export default function AdminDashboard() {
 
       <section className="admin-stats">
         <div><span>Commandes</span><strong>{orders.length}</strong></div>
-        <div><span>En attente</span><strong>{orders.filter((order) => order.status === 'En attente').length}</strong></div>
+        <div><span>En attente</span><strong>{orders.filter((order) => order.statut === 'En attente').length}</strong></div>
         <div><span>Produits</span><strong>{products.length}</strong></div>
         <div><span>Utilisateurs</span><strong>{users.length}</strong></div>
         <div><span>Vendeurs</span><strong>{users.filter((person) => person.role === 'vendor').length}</strong></div>
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
               <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Inscrit le</th><th>Changer le rôle</th></tr></thead>
               <tbody>{users.map((person) => (
                 <tr key={person._id}>
-                  <td><strong>{person.nom}</strong></td>
+                  <td><strong>{person.name}</strong></td>
                   <td>{person.email}</td>
                   <td><span className={`role-badge role-${person.role}`}>{person.role === 'admin' ? 'Admin' : person.role === 'vendor' ? 'Vendeur' : 'Client'}</span></td>
                   <td>{person.createdAt ? formatDate(person.createdAt) : '-'}</td>
@@ -199,7 +199,7 @@ export default function AdminDashboard() {
                       <span className="admin-empty" style={{ padding: 0 }}>—</span>
                     ) : (
                       <select className="status-select" value={person.role} onChange={(event) => updateUserRole(person._id, event.target.value)}>
-                        <option value="user">Client</option>
+                        <option value="client">Client</option>
                         <option value="vendor">Vendeur</option>
                       </select>
                     )}

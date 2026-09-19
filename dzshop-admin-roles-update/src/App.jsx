@@ -114,7 +114,7 @@ function MainApp() {
         <Route path="/panier" element={<CartPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/checkout" element={<PrivateRoute requiredRole="client"><CheckoutPage /></PrivateRoute>} />
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/admin" element={<PrivateRoute requiredRole="admin"><AdminDashboard /></PrivateRoute>} />
         <Route path="/vendor/dashboard" element={<PrivateRoute requiredRole={['vendor', 'admin']}><VendorDashboard /></PrivateRoute>} />

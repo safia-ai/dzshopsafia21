@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CartContext } from './CartContext';
 import './ProductDetailsPage.css';
@@ -8,7 +8,7 @@ export default function ProductDetailsPage({ products = [], onAddToCart }) {
   const { addToCart } = useContext(CartContext);
   const [added, setAdded] = useState(false);
 
-  const produit = products.find((p) => p.id === Number(id));
+  const produit = products.find((p) => String(p.id) === String(id));
 
   if (!produit) {
     return (

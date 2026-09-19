@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState } from 'react';
 
 export const CartContext = createContext();
 
@@ -7,13 +8,16 @@ export function CartProvider({ children }) {
 
   const addToCart = (product) => {
     setCart((prev) => {
-      const exists = prev.find((item) => item.id === product.id);
+      const productId = String(product.id ?? product._id);
+      const exists = prev.find((item) => String(item.id ?? item._id) === productId);
       if (exists) {
         return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1, qte: (item.qte || 1) + 1 } : item
+          String(item.id ?? item._id) === productId
+            ? { ...item, quantity: (item.quantity || item.qte || 1) + 1, qte: (item.qte || item.quantity || 1) + 1 }
+            : item
         );
       }
-      return [...prev, { ...product, quantity: 1, qte: 1 }];
+      return [...prev, { ...product, id: productId, quantity: 1, qte: 1 }];
     });
   };
 
@@ -23,12 +27,12 @@ export function CartProvider({ children }) {
       return;
     }
     setCart((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity: nouvelleQte, qte: nouvelleQte } : item))
+      prev.map((item) => (String(item.id ?? item._id) === String(id) ? { ...item, quantity: nouvelleQte, qte: nouvelleQte } : item))
     );
   };
 
   const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
+    setCart((prev) => prev.filter((item) => String(item.id ?? item._id) !== String(id)));
   };
 
   const clearCart = () => {
