@@ -38,7 +38,8 @@ function MainApp() {
         setLoading(true);
         setError('');
 
-        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const configuredApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+        const apiBaseUrl = configuredApiUrl.endsWith('/api') ? configuredApiUrl : `${configuredApiUrl}/api`;
         const response = await fetch(`${apiBaseUrl}/products`);
         if (!response.ok) throw new Error('Impossible de charger les produits.');
 

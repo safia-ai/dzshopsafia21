@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import dotenv from 'dotenv'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { OAuth2Client } from 'google-auth-library'
 import User from './models/User.js'
 import productRoutes, { vendorRouter } from './routes/products.js'
@@ -9,7 +11,8 @@ import orderRoutes from './routes/orders.js'
 import userRoutes from './routes/users.js'
 import { createToken, requireAuth } from './middleware/auth.js'
 
-dotenv.config()
+const backendDirectory = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.join(backendDirectory, '.env') })
 
 const app = express()
 const googleClient = new OAuth2Client()
@@ -67,14 +70,18 @@ async function migrateLegacyRoles() {
   await User.updateMany({ role: { $nin: ['client', 'vendor', 'admin'] } }, { $set: { role: 'client' } })
 }
 
-// الاتصال بـ MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(async () => {
-    console.log('MongoDB connecté ✅')
-    await migrateLegacyRoles()
-    await ensureAdminUser()
-  })
-  .catch((err) => console.log('Erreur MongoDB : ' + err.message))
+function getMongoUri() {
+  const mongoUri = process.env.MONGO_URI?.trim()
+  if (!mongoUri) {
+    throw new Error('MONGO_URI is missing from dzshop-api/.env.')
+  }
+
+  if (!/^mongodb(?:\+srv)?:\/\//.test(mongoUri)) {
+    throw new Error('MONGO_URI must start with mongodb:// or mongodb+srv://.')
+  }
+
+  return mongoUri
+}
 
 app.get('/', (req, res) => {
   res.json({ message: 'API DZShop en ligne' })
@@ -142,20 +149,6 @@ app.post('/api/auth/register', async (req, res) => {
   }
 })
 
-app.use('/api/orders', orderRoutes)
-app.use('/api/users', userRoutes)
-app.use('/api/products', productRoutes)
-app.use('/api/vendor/products', vendorRouter)
-
-app.get('/api/me', requireAuth, async (req, res) => {
-  return res.json({ user: { id: req.user._id, email: req.user.email, role: req.user.role, name: req.user.name || req.user.nom } })
-})
-
-const PORT = process.env.PORT || 5000
-app.listen(PORT, () => {
-  console.log(`Serveur sur http://localhost:${PORT}`)
-})
-
 app.post('/api/auth/google', async (req, res) => {
   const { credential } = req.body
 
@@ -211,3 +204,50 @@ app.post('/api/auth/google', async (req, res) => {
     return res.status(401).json({ message: 'Credential Google invalide ou expiré.' })
   }
 })
+
+app.use('/api/orders', orderRoutes)
+app.use('/api/users', userRoutes)
+app.use('/api/products', productRoutes)
+app.use('/api/vendor/products', vendorRouter)
+
+app.get('/api/me', requireAuth, async (req, res) => {
+  return res.json({ user: { id: req.user._id, email: req.user.email, role: req.user.role, name: req.user.name || req.user.nom } })
+})
+
+async function startServer() {
+  try {
+    await mongoose.connect(getMongoUri())
+    console.log('MongoDB connecté ✅')
+    await migrateLegacyRoles()
+    await ensureAdminUser()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown MongoDB error.'
+    console.error(`MongoDB connection failed: ${message}`)
+    console.error('Server startup aborted.')
+    process.exitCode = 1
+    return
+  }
+
+  const port = Number.parseInt(process.env.PORT || '5000', 10)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error('Server startup aborted: PORT must be a valid number between 1 and 65535.')
+    process.exitCode = 1
+    return
+  }
+
+  const server = app.listen(port, () => {
+    console.log(`Serveur sur http://localhost:${port}`)
+  })
+
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Server startup failed: port ${port} is already in use.`)
+      console.error('Stop the existing DZShop server or choose another PORT in .env; no process was terminated automatically.')
+    } else {
+      console.error(`Server startup failed: ${error.message}`)
+    }
+    process.exitCode = 1
+  })
+}
+
+startServer()
