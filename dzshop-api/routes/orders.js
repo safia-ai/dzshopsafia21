@@ -15,29 +15,34 @@ class OrderRequestError extends Error {
 
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const telephoneInput = req.body.telephone?.trim().replace(/[\s().-]/g, '')
+    const rawArticles = Array.isArray(req.body.articles) ? req.body.articles : []
+    const nomClient = (req.body.nomClient || req.body.name || req.body.fullName || '').trim()
+    const commune = (req.body.commune || '').trim()
+    const adresse = (req.body.adresse || req.body.address || '').trim()
+    const note = (req.body.note || '').trim()
+    const wilaya = (req.body.wilaya || '').trim()
+    const telephoneInput = (req.body.telephone || '').trim().replace(/[\s().-]/g, '')
     const telephone = telephoneInput?.startsWith('+213')
       ? `0${telephoneInput.slice(4)}`
       : telephoneInput
-    const wilaya = req.body.wilaya?.trim()
-    const adresse = req.body.adresse?.trim()
-    const { articles } = req.body
 
-    if (!telephone || !wilaya || !adresse) {
-      return res.status(400).json({ message: 'Veuillez renseigner votre téléphone et adresse de livraison.' })
+    if (!nomClient || !telephone || !wilaya || !commune || !adresse) {
+      return res.status(400).json({ message: 'Veuillez renseigner votre nom, votre commune, votre téléphone et votre adresse de livraison.' })
     }
     if (!/^0[567]\d{8}$/.test(telephone)) {
       return res.status(400).json({ message: 'Le numéro doit être un numéro mobile algérien valide.' })
     }
-    if (!Array.isArray(articles) || articles.length === 0 || articles.length > 50) {
+    if (!Array.isArray(rawArticles) || rawArticles.length === 0 || rawArticles.length > 50) {
       return res.status(400).json({ message: 'Votre panier est vide ou contient trop d’articles.' })
     }
 
-    const requestedItems = articles.map((item) => ({
-      productId: item?.produit,
-      quantity: Number(item?.qte)
-    }))
-    if (requestedItems.some((item) => !mongoose.isValidObjectId(item.productId) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99)) {
+    const requestedItems = rawArticles.map((item) => {
+      const productId = item?.productId ?? item?.produit ?? item?._id ?? item?.id
+      const quantity = Number(item?.quantity ?? item?.qte ?? item?.qty ?? 1)
+      return { productId, quantity }
+    })
+
+    if (requestedItems.some((item) => !mongoose.isValidObjectId(item.productId) || !Number.isInteger(item.quantity) || item.quantity <= 0 || item.quantity > 99)) {
       return res.status(400).json({ message: 'Chaque article doit avoir un produit valide et une quantité comprise entre 1 et 99.' })
     }
 
@@ -61,8 +66,11 @@ router.post('/', requireAuth, async (req, res) => {
 
         for (const [productId, quantity] of requestedQuantities) {
           const product = productsById.get(productId)
+          if (!product) {
+            throw new OrderRequestError(404, 'Produit introuvable')
+          }
           if (product.stock < quantity) {
-            throw new OrderRequestError(400, 'Stock insuffisant pour ce produit')
+            throw new OrderRequestError(400, `Stock insuffisant pour ${product.nom || 'ce produit'}.`) 
           }
 
           const stockUpdate = await Product.updateOne(
@@ -71,32 +79,37 @@ router.post('/', requireAuth, async (req, res) => {
             { session }
           )
           if (stockUpdate.modifiedCount !== 1) {
-            throw new OrderRequestError(400, 'Stock insuffisant pour ce produit')
+            throw new OrderRequestError(400, `Stock insuffisant pour ${product.nom || 'ce produit'}.`) 
           }
         }
 
         let subtotal = 0
         const orderItems = requestedItems.map(({ productId, quantity }) => {
           const product = productsById.get(String(productId))
-          subtotal += product.prix * quantity
+          subtotal += Number(product.prix) * quantity
           return {
+            productId: product._id,
             produit: product._id,
             nom: product.nom,
             prix: product.prix,
-            qte: quantity
+            qte: quantity,
+            image: product.image || ''
           }
         })
 
-        // Les prix et le total du client sont ignorés; seuls les prix MongoDB font foi.
         const livraison = subtotal >= 10000 || subtotal === 0 ? 0 : 500
         order = new Order({
           user: req.user._id,
+          nomClient,
           articles: orderItems,
           livraison,
           total: subtotal + livraison,
           adresse,
+          commune,
           telephone,
           wilaya,
+          note,
+          modePaiement: req.body.modePaiement || 'Paiement à la livraison'
         })
         await order.save({ session })
       })

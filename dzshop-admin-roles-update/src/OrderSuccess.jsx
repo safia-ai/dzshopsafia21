@@ -38,7 +38,7 @@ export default function OrderSuccess() {
         )}
         <div className="order-success-actions">
           <Link className="back-to-store-button" to="/produits">Continuer vos achats</Link>
-          <Link className="follow-order-button" to="/profil">Suivre ma commande</Link>
+          <Link className="follow-order-button" to="/mes-commandes">Voir mes commandes</Link>
         </div>
       </section>
     </main>
