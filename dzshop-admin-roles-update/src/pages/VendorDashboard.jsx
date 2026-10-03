@@ -1,19 +1,56 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
+import { getImageUrl } from '../utils/imageUrl';
 import './AdminDashboard.css';
 import './VendorDashboard.css';
 
-const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
-const defaultProductImage = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
+const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '').replace(/\/api$/, '');
 const emptyForm = { title: '', description: '', category: '', price: '', stock: '', image: '' };
+
+function ImageField({ file, currentImage, inputId, onFileChange }) {
+  const inputRef = useRef(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const previewRef = useRef('');
+
+  useEffect(() => () => {
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+  }, []);
+
+  const imageSource = previewUrl || getImageUrl(currentImage);
+
+  return (
+    <div className="vendor-image-field">
+      <label htmlFor={inputId}>Photo du produit</label>
+      <input
+        ref={inputRef}
+        id={inputId}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(event) => {
+          const selectedFile = event.target.files?.[0] || null;
+          if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+          const nextPreviewUrl = selectedFile ? URL.createObjectURL(selectedFile) : '';
+          previewRef.current = nextPreviewUrl;
+          setPreviewUrl(nextPreviewUrl);
+          onFileChange(selectedFile);
+        }}
+      />
+      {file && <span className="vendor-image-filename">{file.name}</span>}
+      {imageSource && <img className="vendor-image-preview" src={imageSource} alt="Aperçu du produit" />}
+    </div>
+  );
+}
 
 export default function VendorDashboard() {
   const { user, token } = useContext(AuthContext);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePickerKey, setImagePickerKey] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(emptyForm);
+  const [editImageFile, setEditImageFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -50,25 +87,26 @@ export default function VendorDashboard() {
     setError('');
     setSaving(true);
 
-    const productData = {
-      nom: form.title.trim(),
-      description: form.description.trim(),
-      categorie: form.category.trim() || 'Divers',
-      prix: Number(form.price),
-      stock: form.stock === '' ? 0 : Number(form.stock),
-      image: form.image.trim() || defaultProductImage
-    };
+    const productData = new FormData();
+    productData.append('nom', form.title.trim());
+    productData.append('description', form.description.trim());
+    productData.append('categorie', form.category.trim() || 'Divers');
+    productData.append('prix', String(Number(form.price)));
+    productData.append('stock', String(form.stock === '' ? 0 : Number(form.stock)));
+    if (imageFile) productData.append('image', imageFile);
 
     try {
       const response = await fetch(`${apiUrl}/api/vendor/products`, {
         method: 'POST',
-        headers: { ...authorizedHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData)
+        headers: authorizedHeaders,
+        body: productData
       });
       const product = await response.json();
       if (!response.ok) throw new Error(product.message || "Impossible d'ajouter le produit.");
       setProducts((current) => [product, ...current]);
       setForm(emptyForm);
+      setImageFile(null);
+      setImagePickerKey((current) => current + 1);
       setMessage('Produit ajouté à votre boutique.');
     } catch (requestError) {
       setError(requestError.message);
@@ -79,6 +117,7 @@ export default function VendorDashboard() {
 
   const startEdit = (product) => {
     setEditingId(product._id);
+    setEditImageFile(null);
     setEditForm({
       title: product.nom || '',
           description: product.description || '',
@@ -92,22 +131,24 @@ export default function VendorDashboard() {
   const cancelEdit = () => {
     setEditingId(null);
     setEditForm(emptyForm);
+    setEditImageFile(null);
   };
 
   const saveEdit = async (productId) => {
     setError('');
+    const productData = new FormData();
+    productData.append('nom', editForm.title.trim());
+    productData.append('description', editForm.description.trim());
+    productData.append('categorie', editForm.category.trim() || 'Divers');
+    productData.append('prix', String(Number(editForm.price)));
+    productData.append('stock', String(editForm.stock === '' ? 0 : Number(editForm.stock)));
+    if (editImageFile) productData.append('image', editImageFile);
+
     try {
       const response = await fetch(`${apiUrl}/api/vendor/products/${productId}`, {
         method: 'PATCH',
-        headers: { ...authorizedHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nom: editForm.title.trim(),
-          description: editForm.description.trim(),
-          categorie: editForm.category.trim() || 'Divers',
-          prix: Number(editForm.price),
-          stock: editForm.stock === '' ? 0 : Number(editForm.stock),
-          image: editForm.image.trim() || defaultProductImage
-        })
+        headers: authorizedHeaders,
+        body: productData
       });
       const updated = await response.json();
       if (!response.ok) throw new Error(updated.message || 'Impossible de modifier le produit.');
@@ -183,7 +224,7 @@ export default function VendorDashboard() {
             <label>Catégorie<input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Audio, Gaming..." /></label>
             <label>Prix (DZD)<input required min="0" type="number" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="8500" /></label>
             <label>Stock<input min="0" type="number" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} placeholder="10" /></label>
-            <label>Image URL<input type="url" value={form.image} onChange={(event) => setForm({ ...form, image: event.target.value })} placeholder="https://... (optionnel)" /></label>
+            <ImageField key={imagePickerKey} file={imageFile} inputId="new-product-image" onFileChange={setImageFile} />
             <button type="submit" disabled={saving}>{saving ? 'Ajout en cours...' : '+ Ajouter le produit'}</button>
           </form>
         </section>
@@ -199,7 +240,7 @@ export default function VendorDashboard() {
                   <input value={editForm.category} onChange={(event) => setEditForm({ ...editForm, category: event.target.value })} placeholder="Catégorie" />
                   <input type="number" min="0" value={editForm.price} onChange={(event) => setEditForm({ ...editForm, price: event.target.value })} placeholder="Prix" />
                   <input type="number" min="0" value={editForm.stock} onChange={(event) => setEditForm({ ...editForm, stock: event.target.value })} placeholder="Stock" />
-                  <input type="url" value={editForm.image} onChange={(event) => setEditForm({ ...editForm, image: event.target.value })} placeholder="URL de la photo" />
+                  <ImageField file={editImageFile} currentImage={editForm.image} inputId={`edit-product-image-${product._id}`} onFileChange={setEditImageFile} />
                   <div className="vendor-product-edit-actions">
                     <button type="button" className="vendor-btn-save" onClick={() => saveEdit(product._id)}>Enregistrer</button>
                     <button type="button" className="vendor-btn-cancel" onClick={cancelEdit}>Annuler</button>
@@ -207,7 +248,7 @@ export default function VendorDashboard() {
                 </div>
               ) : (
                 <div className="vendor-product-item" key={product._id}>
-                  <img src={product.image || 'https://placehold.co/80x80?text=Produit'} alt="" />
+                  <img src={product.image ? getImageUrl(product.image) : 'https://placehold.co/80x80?text=Produit'} alt="" />
                   <div className="vendor-product-info">
                     <strong>{product.nom}</strong>
                     <span>{Number(product.prix).toLocaleString('fr-DZ')} DZD · Stock {product.stock}</span>

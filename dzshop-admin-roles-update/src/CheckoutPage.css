@@ -27,22 +27,27 @@
 .phone-input { display: flex; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; }
 .phone-input strong { display: grid; place-items: center; padding: 0 14px; background: #f9fafb; border-right: 1px solid #d1d5db; font-size: 0.78rem; white-space: nowrap; }
 .phone-input input { border: 0; border-radius: 0; }
-.default-address { display: flex; align-items: center; gap: 9px; margin: 26px 0; color: #4b5563; font-size: 0.88rem; }
-.default-address input { accent-color: #111827; width: 16px; height: 16px; }
-.save-address-button, .continue-button { border: 0; cursor: pointer; font-weight: 800; letter-spacing: 0.08em; transition: transform 0.2s, background 0.2s; }
-.save-address-button { width: 100%; padding: 16px; border-radius: 8px; background: #111827; color: #fff; }
-.save-address-button:hover, .continue-button:hover { background: #374151; transform: translateY(-1px); }
+.checkout-payment { display: flex; align-items: center; gap: 12px; margin: 24px 0; padding: 15px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; }
+.checkout-payment-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; background: #dcfce7; color: #166534; font-size: 0.78rem; font-weight: 800; }
+.checkout-payment > span:nth-child(2) { display: grid; flex: 1; gap: 4px; color: #166534; font-size: 0.84rem; }
+.checkout-payment small { color: #64748b; font-size: 0.75rem; font-weight: 500; }
+.checkout-payment input { width: 18px; height: 18px; accent-color: #15803d; }
+.save-address-button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 50px; padding: 14px 16px; border: 0; border-radius: 8px; background: #111827; color: #fff; font: inherit; font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: transform 0.2s, background 0.2s, opacity 0.2s; }
+.save-address-button:not(:disabled):hover { background: #374151; transform: translateY(-1px); }
+.save-address-button:disabled { cursor: not-allowed; opacity: 0.62; }
+.checkout-spinner { width: 17px; height: 17px; border: 2px solid rgb(255 255 255 / 45%); border-top-color: #fff; border-radius: 50%; animation: checkout-spin 700ms linear infinite; }
+@keyframes checkout-spin { to { transform: rotate(360deg); } }
+.checkout-error { margin: 0 0 14px; padding: 12px 14px; border: 1px solid #fecdd3; border-radius: 7px; background: #fff1f2; color: #be123c; font-size: 0.84rem; line-height: 1.5; }
 .checkout-success { color: #15803d; font-size: 0.88rem; margin: 16px 0 0; }
 .checkout-sidebar { display: grid; gap: 16px; }
-.continue-button { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-radius: 10px; background: #111827; color: #fff; }
-.continue-button span { font-size: 1.25rem; }
 .summary-card, .trust-panel { padding: 24px; }
 .summary-title { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
 .summary-title h2 { margin: 0; font-size: 1.08rem; }
 .summary-title span { color: #9ca3af; font-size: 0.78rem; }
-.summary-item, .summary-line { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; color: #6b7280; font-size: 0.84rem; }
+.summary-item, .summary-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; color: #6b7280; font-size: 0.84rem; }
 .summary-item { border-bottom: 1px solid #f3f4f6; }
-.summary-item span { overflow: hidden; text-overflow: ellipsis; }
+.summary-item img { width: 42px; height: 42px; flex: 0 0 42px; border: 1px solid #e5e7eb; border-radius: 6px; object-fit: cover; }
+.summary-item span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .summary-item b { color: #9ca3af; font-weight: 500; }
 .summary-item strong, .summary-line strong { color: #111827; white-space: nowrap; }
 .summary-line { margin-top: 6px; }
@@ -66,4 +71,6 @@
   .checkout-layout { grid-template-columns: 1fr; }
   .checkout-fields { grid-template-columns: 1fr; }
   .checkout-field-full { grid-column: auto; }
+  .checkout-sidebar { grid-row: 1; }
+  .summary-card, .trust-panel { padding: 20px; }
 }

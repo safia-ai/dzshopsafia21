@@ -70,6 +70,11 @@
   outline: none;
 }
 .vendor-product-edit-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+.vendor-image-field { display: grid; gap: 7px; min-width: 0; }
+.vendor-image-field > label { color: #475569; font-size: 0.78rem; font-weight: 700; }
+.vendor-image-field input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px dashed #9ca3af; border-radius: 7px; background: #f9fafb; font: inherit; font-size: 0.8rem; }
+.vendor-image-filename { overflow: hidden; color: #64748b; font-size: 0.76rem; text-overflow: ellipsis; white-space: nowrap; }
+.vendor-image-preview { width: min(100%, 260px); aspect-ratio: 4 / 3; border: 1px solid #e5e7eb; border-radius: 7px; object-fit: contain; background: #f8fafc; }
 .vendor-btn-save,
 .vendor-btn-cancel {
   padding: 8px 16px;

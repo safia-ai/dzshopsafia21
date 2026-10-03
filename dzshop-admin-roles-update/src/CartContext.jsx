@@ -1,10 +1,36 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 export const CartContext = createContext();
+const cartStorageKey = 'dzshop_panier';
+
+function readStoredCart() {
+  try {
+    const storedCart = JSON.parse(localStorage.getItem(cartStorageKey) || '[]');
+    return Array.isArray(storedCart) ? storedCart : [];
+  } catch {
+    return [];
+  }
+}
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(readStoredCart);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+    } catch {
+      // The in-memory cart remains usable when browser storage is unavailable.
+    }
+  }, [cart]);
+
+  useEffect(() => {
+    const syncCart = (event) => {
+      if (event.key === cartStorageKey) setCart(readStoredCart());
+    };
+    window.addEventListener('storage', syncCart);
+    return () => window.removeEventListener('storage', syncCart);
+  }, []);
 
   const addToCart = (product) => {
     setCart((prev) => {

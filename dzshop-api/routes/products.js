@@ -1,16 +1,19 @@
 import express from 'express'
 import Product from '../models/Product.js'
 import { authorizeRoles, requireAuth, requireAdmin } from '../middleware/auth.js'
+import { uploadProductImage } from '../middleware/upload.js'
 
 const router = express.Router()
 export const vendorRouter = express.Router()
 
 const vendorProductFields = ['nom', 'description', 'prix', 'categorie', 'stock', 'image', 'isAdvertised']
 
-function pickProductFields(body) {
-  return Object.fromEntries(vendorProductFields
+function pickProductFields(body, file) {
+  const fields = Object.fromEntries(vendorProductFields
     .filter((field) => body[field] !== undefined)
     .map((field) => [field, body[field]]))
+  if (file) fields.image = `/uploads/${file.filename}`
+  return fields
 }
 
 function canManageProduct(product, user) {
@@ -36,10 +39,11 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
+router.post('/', requireAuth, requireAdmin, uploadProductImage, async (req, res) => {
   try {
     const product = await Product.create({
       ...req.body,
+      ...(req.file && { image: `/uploads/${req.file.filename}` }),
       vendor: req.body.vendor || req.user._id
     })
     return res.status(201).json(product)
@@ -48,9 +52,12 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
-router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requireAdmin, uploadProductImage, async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    const product = await Product.findByIdAndUpdate(req.params.id, {
+      ...req.body,
+      ...(req.file && { image: `/uploads/${req.file.filename}` })
+    }, {
       new: true,
       runValidators: true
     })
@@ -83,10 +90,10 @@ vendorRouter.get('/', async (req, res) => {
   }
 })
 
-vendorRouter.post('/', async (req, res) => {
+vendorRouter.post('/', uploadProductImage, async (req, res) => {
   try {
     const product = await Product.create({
-      ...pickProductFields(req.body),
+      ...pickProductFields(req.body, req.file),
       vendor: req.user._id
     })
     return res.status(201).json(product)
@@ -95,13 +102,13 @@ vendorRouter.post('/', async (req, res) => {
   }
 })
 
-vendorRouter.patch('/:id', async (req, res) => {
+vendorRouter.patch('/:id', uploadProductImage, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
     if (!product) return res.status(404).json({ message: 'Produit introuvable' })
     if (!canManageProduct(product, req.user)) return res.status(403).json({ message: 'Ce produit ne vous appartient pas.' })
 
-    Object.assign(product, pickProductFields(req.body))
+    Object.assign(product, pickProductFields(req.body, req.file))
     await product.save()
     return res.json(product)
   } catch (err) {

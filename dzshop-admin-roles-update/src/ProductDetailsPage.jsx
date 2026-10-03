@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CartContext } from './CartContext';
+import { getImageUrl } from './utils/imageUrl';
 import './ProductDetailsPage.css';
 
 export default function ProductDetailsPage({ products = [], onAddToCart }) {
@@ -44,7 +45,7 @@ export default function ProductDetailsPage({ products = [], onAddToCart }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '40px', alignItems: 'start' }}>
         <div>
           <img 
-            src={produit.image} 
+            src={getImageUrl(produit.image)}
             alt={name} 
             style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', border: '1px solid #e2e8f0' }} 
           />

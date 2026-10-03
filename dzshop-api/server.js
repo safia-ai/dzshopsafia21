@@ -9,6 +9,8 @@ import User from './models/User.js'
 import productRoutes, { vendorRouter } from './routes/products.js'
 import orderRoutes from './routes/orders.js'
 import userRoutes from './routes/users.js'
+import uploadRoutes from './routes/upload.js'
+import adminStatsRoutes from './routes/adminStats.js'
 import { createToken, requireAuth } from './middleware/auth.js'
 
 const backendDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -17,15 +19,25 @@ dotenv.config({ path: path.join(backendDirectory, '.env') })
 const app = express()
 const googleClient = new OAuth2Client()
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
+function normalizeOrigin(value) {
+  try {
+    const url = new URL(value.trim())
+    return ['http:', 'https:'].includes(url.protocol) ? url.origin : null
+  } catch {
+    return null
+  }
+}
+
+const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/+$/, '')
+const allowedOrigins = new Set([
+  ...frontendUrl.split(',').map((origin) => origin.trim()),
   'http://localhost:5173',
   'http://127.0.0.1:5173'
-].filter(Boolean)
+].map(normalizeOrigin).filter(Boolean))
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
       callback(null, true)
       return
     }
@@ -34,6 +46,7 @@ app.use(cors({
   credentials: true
 }))
 app.use(express.json())
+app.use('/uploads', express.static(path.join(backendDirectory, 'uploads')))
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET must be set in the backend environment.')
@@ -49,14 +62,22 @@ async function ensureAdminUser() {
   if (adminCount > 0) return
 
   const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
-  const configuredAdminPassword = process.env.ADMIN_INITIAL_PASSWORD
+  const configuredAdminPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD
   if (!configuredAdminEmail || !configuredAdminPassword) {
-    console.warn('No initial admin bootstrap configured. Set ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD only for first setup.')
+    console.warn('No initial admin bootstrap configured. Set ADMIN_EMAIL and ADMIN_PASSWORD only for first setup.')
     return
+  }
+  if (configuredAdminPassword.length < 12) {
+    throw new Error('ADMIN_PASSWORD must contain at least 12 characters.')
   }
 
   const existingAdmin = await User.findOne({ email: configuredAdminEmail })
-  if (existingAdmin) return
+  if (existingAdmin) {
+    if (existingAdmin.role !== 'admin') {
+      throw new Error('ADMIN_EMAIL belongs to a non-admin account; refusing to promote it.')
+    }
+    return
+  }
 
   await User.create({
     name: process.env.ADMIN_NAME || 'Admin',
@@ -209,6 +230,8 @@ app.use('/api/orders', orderRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/vendor/products', vendorRouter)
+app.use('/api/upload', uploadRoutes)
+app.use('/api/admin', adminStatsRoutes)
 
 app.get('/api/me', requireAuth, async (req, res) => {
   return res.json({ user: { id: req.user._id, email: req.user.email, role: req.user.role, name: req.user.name || req.user.nom } })

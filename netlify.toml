@@ -1,0 +1,4 @@
+[build]
+  base = "dzshop-admin-roles-update"
+  command = "npm run build"
+  publish = "dist"

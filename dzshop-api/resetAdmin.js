@@ -1,51 +1,40 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import User from './models/User.js';
 
+const backendDirectory = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(backendDirectory, '.env') });
+
 async function setupAdmin() {
+  const mongoUri = process.env.MONGO_URI_DIRECT?.trim() || process.env.MONGO_URI?.trim();
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD;
+
   try {
+    if (!mongoUri) throw new Error('Configure MONGO_URI_DIRECT or MONGO_URI in dzshop-api/.env.');
+    if (!adminEmail || !adminPassword) throw new Error('Configure ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD before resetting the admin account.');
+    if (adminPassword.length < 12) throw new Error('ADMIN_PASSWORD must contain at least 12 characters.');
     console.log('Connecting to MongoDB...');
-    const mongoUri = process.env.MONGO_URI_DIRECT?.trim() || process.env.MONGO_URI?.trim();
     await mongoose.connect(mongoUri);
-    console.log('Connected successfully.\n');
+    let admin = await User.findOne({ email: adminEmail }).select('+password');
+    if (admin && admin.role !== 'admin') {
+      throw new Error('The configured email belongs to a non-admin account; refusing to promote it.');
+    }
 
-    // 1. عرض الحسابات الموجودة مسبقاً
-    const existingUsers = await User.find({}, 'email role name');
-    console.log('--- Utilisateurs dans la base de données ---');
-    console.log(existingUsers);
-    console.log('-------------------------------------------\n');
+    if (!admin) admin = new User({ email: adminEmail, role: 'admin' });
+    admin.name = process.env.ADMIN_NAME?.trim() || 'Admin';
+    admin.password = User.hashPassword(adminPassword);
+    await admin.save();
 
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@dzshop.dz';
-    const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'SAFIA2005';
-    const adminName = process.env.ADMIN_NAME || 'Admin Safia';
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(adminPassword, salt);
-
-    // 2. تحديث الحساب أو إنشاؤه إذا لم يكن موجوداً (upsert)
-    const admin = await User.findOneAndUpdate(
-      { email: adminEmail },
-      {
-        name: adminName,
-        email: adminEmail,
-        password: hashedPassword,
-        role: 'admin'
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-
-    console.log('✅ Compte Admin prêt avec succès !');
-    console.log(`Email    : ${admin.email}`);
-    console.log(`Password : ${adminPassword}`);
-    console.log(`Role     : ${admin.role}`);
-
+    console.log(`Admin credentials updated for ${admin.email}. The password was not displayed.`);
   } catch (error) {
-    console.error('❌ Erreur:', error.message);
+    console.error('Admin reset failed:', error.message);
+    process.exitCode = 1;
   } finally {
-    await mongoose.disconnect();
-    process.exit();
+    if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
   }
 }
 

@@ -1,6 +1,7 @@
 import './product.css';
 import { ShoppingCart, Star, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getImageUrl } from './utils/imageUrl';
 
 const defaultProductImage = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500';
 
@@ -39,7 +40,7 @@ function ProductCard({
           <Heart size={18} />
         </button>
 
-        <img src={image || defaultProductImage} alt={title} className="product-img" />
+        <img src={image ? getImageUrl(image) : defaultProductImage} alt={title} className="product-img" />
       </div>
 
       <div className="product-info">

@@ -11,6 +11,8 @@ import './App.css';
 // Pages
 import CheckoutPage from './CheckoutPage';
 import OrderSuccess from './OrderSuccess';
+import MyOrdersPage from './MyOrdersPage';
+import ProfilePage from './ProfilePage';
 import ProductDetailsPage from './ProductDetailsPage';
 import CartPage from './CartPage';
 import LoginPage from './LoginPage';
@@ -376,6 +378,15 @@ function MainApp() {
 
           {/* CART */}
 
+          {user?.role === 'client' && (
+            <button
+              className="btn-nav"
+              onClick={() => navigate('/mes-commandes')}
+            >
+              Mes commandes
+            </button>
+          )}
+
           <button
             className="btn-nav"
             style={{
@@ -419,15 +430,9 @@ function MainApp() {
               }}
             >
 
-              <span
-                style={{
-                  fontWeight: '600',
-                  color: '#1e293b',
-                  fontSize: '0.9rem',
-                }}
-              >
-                👤 {user.nom}
-              </span>
+              <button className="btn-nav" onClick={() => navigate('/profil')}>
+                👤 Mon profil
+              </button>
 
 
               <button
@@ -1060,6 +1065,24 @@ function MainApp() {
           path="/order-success"
           element={
             <OrderSuccess />
+          }
+        />
+
+        <Route
+          path="/mes-commandes"
+          element={
+            <PrivateRoute requiredRole="client">
+              <MyOrdersPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/profil"
+          element={
+            <PrivateRoute>
+              <ProfilePage />
+            </PrivateRoute>
           }
         />
 

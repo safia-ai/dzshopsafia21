@@ -7,7 +7,7 @@ const productSchema = new mongoose.Schema({
   categorie: { type: String, default: 'Divers' },
   stock: { type: Number, default: 0 },
   isAdvertised: { type: Boolean, default: false },
-  image: String,
+  image: { type: String, default: '' },
   vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, {
   timestamps: true

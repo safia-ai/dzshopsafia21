@@ -1,0 +1,47 @@
+.profile-page { width: min(100% - 40px, 1080px); margin: 0 auto; padding: 48px 0 80px; color: #172033; }
+.profile-heading, .profile-orders-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.profile-heading { margin-bottom: 24px; }
+.profile-eyebrow { color: #64748b; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; }
+.profile-heading h1 { margin: 8px 0 0; font-size: 2rem; }
+.profile-heading > a, .profile-empty-state a { color: #166534; font-size: 0.86rem; font-weight: 700; text-decoration: none; }
+.profile-account { display: flex; align-items: center; gap: 18px; margin-bottom: 34px; padding: 22px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+.profile-avatar { display: grid; place-items: center; width: 58px; height: 58px; flex: 0 0 58px; border-radius: 50%; background: #dcfce7; color: #166534; font-size: 1.35rem; font-weight: 800; }
+.profile-account h2 { margin: 0 0 5px; font-size: 1.05rem; }
+.profile-account p { margin: 0 0 8px; color: #64748b; font-size: 0.84rem; }
+.profile-role { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 0.7rem; font-weight: 700; text-transform: capitalize; }
+.profile-orders-heading { margin-bottom: 16px; }
+.profile-orders-heading h2 { margin: 6px 0 0; font-size: 1.25rem; }
+.profile-orders-heading > span { color: #64748b; font-size: 0.8rem; }
+.profile-order-list { display: grid; gap: 14px; }
+.profile-order { overflow: hidden; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+.profile-order-header { display: flex; align-items: center; gap: 24px; padding: 15px 18px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
+.profile-order-header > div { display: grid; gap: 4px; }
+.profile-order-header > div span { color: #64748b; font-size: 0.72rem; }
+.profile-order-header > div strong { font-size: 0.8rem; }
+.profile-order-status { margin-left: auto; padding: 6px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 800; }
+.profile-order-status-pending { background: #fef3c7; color: #92400e; }
+.profile-order-status-shipped { background: #dbeafe; color: #1d4ed8; }
+.profile-order-status-delivered { background: #dcfce7; color: #166534; }
+.profile-order-status-cancelled { background: #ffe4e6; color: #be123c; }
+.profile-order-lines { padding: 4px 18px; }
+.profile-order-line { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem; }
+.profile-order-line > span { display: grid; gap: 4px; }
+.profile-order-line small { color: #64748b; font-size: 0.73rem; }
+.profile-order-line > strong { white-space: nowrap; }
+.profile-order-footer { display: flex; justify-content: space-between; gap: 12px; padding: 13px 18px; border-top: 1px solid #e5e7eb; }
+.profile-order-footer span { overflow: hidden; color: #64748b; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
+.profile-order-footer strong { font-size: 0.82rem; white-space: nowrap; }
+.profile-empty, .profile-error { padding: 24px; color: #64748b; text-align: center; }
+.profile-error { border: 1px solid #fecdd3; border-radius: 7px; background: #fff1f2; color: #be123c; }
+.profile-empty-state { display: grid; justify-items: center; gap: 9px; padding: 40px 20px; border: 1px solid #e5e7eb; border-radius: 8px; text-align: center; }
+.profile-empty-state h3, .profile-empty-state p { margin: 0; }
+.profile-empty-state h3 { font-size: 1rem; }
+.profile-empty-state p { color: #64748b; font-size: 0.84rem; }
+@media (max-width: 620px) {
+  .profile-page { width: min(100% - 28px, 1080px); padding-top: 32px; }
+  .profile-heading { align-items: flex-start; flex-direction: column; }
+  .profile-order-header { flex-wrap: wrap; gap: 12px 16px; padding: 13px; }
+  .profile-order-status { margin-left: 0; }
+  .profile-order-lines { padding: 4px 13px; }
+  .profile-order-footer { flex-direction: column; padding: 12px 13px; }
+}

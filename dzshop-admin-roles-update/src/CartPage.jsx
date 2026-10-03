@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { CartContext } from './CartContext';
+import { getImageUrl } from './utils/imageUrl';
 import './cart.css';
 
 export default function CartPage() {
@@ -98,7 +99,7 @@ export default function CartPage() {
                     <td style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                       {item.image && (
                         <img 
-                          src={item.image} 
+                          src={getImageUrl(item.image)}
                           alt={name} 
                           style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '8px' }} 
                         />
