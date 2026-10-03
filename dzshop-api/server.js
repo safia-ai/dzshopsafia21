@@ -71,7 +71,7 @@ async function migrateLegacyRoles() {
 }
 
 function getMongoUri() {
-  const mongoUri = process.env.MONGO_URI?.trim()
+  const mongoUri = process.env.MONGO_URI_DIRECT?.trim() || process.env.MONGO_URI?.trim()
   if (!mongoUri) {
     throw new Error('MONGO_URI is missing from dzshop-api/.env.')
   }

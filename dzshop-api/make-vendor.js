@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 
-const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+const uri = process.env.MONGO_URI_DIRECT?.trim() || process.env.MONGO_URI?.trim() || process.env.MONGODB_URI?.trim();
 const email = process.argv[2]?.trim().toLowerCase();
 
 if (!email) {

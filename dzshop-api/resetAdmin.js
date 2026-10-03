@@ -7,7 +7,8 @@ import User from './models/User.js';
 async function setupAdmin() {
   try {
     console.log('Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGO_URI);
+    const mongoUri = process.env.MONGO_URI_DIRECT?.trim() || process.env.MONGO_URI?.trim();
+    await mongoose.connect(mongoUri);
     console.log('Connected successfully.\n');
 
     // 1. عرض الحسابات الموجودة مسبقاً
