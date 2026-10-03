@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { OAuth2Client } from 'google-auth-library'
+
 import User from './models/User.js'
 import productRoutes, { vendorRouter } from './routes/products.js'
 import orderRoutes from './routes/orders.js'
@@ -13,113 +14,272 @@ import uploadRoutes from './routes/upload.js'
 import adminStatsRoutes from './routes/adminStats.js'
 import { createToken, requireAuth } from './middleware/auth.js'
 
-const backendDirectory = path.dirname(fileURLToPath(import.meta.url))
-dotenv.config({ path: path.join(backendDirectory, '.env') })
+const backendDirectory = path.dirname(
+  fileURLToPath(import.meta.url)
+)
+
+dotenv.config({
+  path: path.join(backendDirectory, '.env')
+})
 
 const app = express()
 const googleClient = new OAuth2Client()
 
+// ======================================================
+// CORS
+// ======================================================
+
 function normalizeOrigin(value) {
   try {
     const url = new URL(value.trim())
-    return ['http:', 'https:'].includes(url.protocol) ? url.origin : null
+
+    return ['http:', 'https:'].includes(url.protocol)
+      ? url.origin
+      : null
   } catch {
     return null
   }
 }
 
-const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/+$/, '')
-const allowedOrigins = new Set([
-  ...frontendUrl.split(',').map((origin) => origin.trim()),
-  'http://localhost:5173',
-  'http://127.0.0.1:5173'
-].map(normalizeOrigin).filter(Boolean))
+const frontendUrl = process.env.FRONTEND_URL
+  ? normalizeOrigin(process.env.FRONTEND_URL)
+  : null
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
-      callback(null, true)
-      return
-    }
-    callback(new Error('Origin not allowed by CORS'))
-  },
-  credentials: true
-}))
+const allowedOrigins = new Set(
+  [
+    frontendUrl,
+
+    // Vite common ports
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+
+    'http://localhost:5175',
+    'http://127.0.0.1:5175',
+
+    'http://localhost:5178',
+    'http://127.0.0.1:5178'
+  ].filter(Boolean)
+)
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Requests without Origin (Postman, server-to-server, etc.)
+      if (!origin) {
+        callback(null, true)
+        return
+      }
+
+      const normalizedOrigin = normalizeOrigin(origin)
+
+      if (
+        normalizedOrigin &&
+        allowedOrigins.has(normalizedOrigin)
+      ) {
+        callback(null, true)
+        return
+      }
+
+      callback(
+        new Error(`Origin not allowed by CORS: ${origin}`)
+      )
+    },
+
+    credentials: true
+  })
+)
+
 app.use(express.json())
-app.use('/uploads', express.static(path.join(backendDirectory, 'uploads')))
+
+// ======================================================
+// STATIC UPLOADS
+// ======================================================
+
+app.use(
+  '/uploads',
+  express.static(
+    path.join(backendDirectory, 'uploads')
+  )
+)
+
+// ======================================================
+// JWT SECRET CHECK
+// ======================================================
 
 if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET must be set in the backend environment.')
+  throw new Error(
+    'JWT_SECRET must be set in the backend environment.'
+  )
 }
+
+// ======================================================
+// ROLE
+// ======================================================
 
 const normalizeRole = (role) => {
   if (role === 'vendor') return 'vendor'
+
   return 'client'
 }
 
-async function ensureAdminUser() {
-  const adminCount = await User.countDocuments({ role: 'admin' })
-  if (adminCount > 0) return
+// ======================================================
+// ADMIN BOOTSTRAP
+// ======================================================
 
-  const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
-  const configuredAdminPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD
-  if (!configuredAdminEmail || !configuredAdminPassword) {
-    console.warn('No initial admin bootstrap configured. Set ADMIN_EMAIL and ADMIN_PASSWORD only for first setup.')
+async function ensureAdminUser() {
+  const adminCount = await User.countDocuments({
+    role: 'admin'
+  })
+
+  if (adminCount > 0) {
     return
   }
-  if (configuredAdminPassword.length < 12) {
-    throw new Error('ADMIN_PASSWORD must contain at least 12 characters.')
+
+  const configuredAdminEmail =
+    process.env.ADMIN_EMAIL
+      ?.trim()
+      .toLowerCase()
+
+  const configuredAdminPassword =
+    process.env.ADMIN_PASSWORD ||
+    process.env.ADMIN_INITIAL_PASSWORD
+
+  if (
+    !configuredAdminEmail ||
+    !configuredAdminPassword
+  ) {
+    console.warn(
+      'No initial admin bootstrap configured. Set ADMIN_EMAIL and ADMIN_PASSWORD only for first setup.'
+    )
+
+    return
   }
 
-  const existingAdmin = await User.findOne({ email: configuredAdminEmail })
+  if (configuredAdminPassword.length < 12) {
+    throw new Error(
+      'ADMIN_PASSWORD must contain at least 12 characters.'
+    )
+  }
+
+  const existingAdmin = await User.findOne({
+    email: configuredAdminEmail
+  })
+
   if (existingAdmin) {
     if (existingAdmin.role !== 'admin') {
-      throw new Error('ADMIN_EMAIL belongs to a non-admin account; refusing to promote it.')
+      throw new Error(
+        'ADMIN_EMAIL belongs to a non-admin account; refusing to promote it.'
+      )
     }
+
     return
   }
 
   await User.create({
     name: process.env.ADMIN_NAME || 'Admin',
     email: configuredAdminEmail,
-    password: User.hashPassword(configuredAdminPassword),
+    password: User.hashPassword(
+      configuredAdminPassword
+    ),
     role: 'admin'
   })
 }
 
+// ======================================================
+// MIGRATE OLD ROLES
+// ======================================================
+
 async function migrateLegacyRoles() {
-  await User.updateMany({ role: { $nin: ['client', 'vendor', 'admin'] } }, { $set: { role: 'client' } })
+  await User.updateMany(
+    {
+      role: {
+        $nin: ['client', 'vendor', 'admin']
+      }
+    },
+    {
+      $set: {
+        role: 'client'
+      }
+    }
+  )
 }
 
+// ======================================================
+// MONGODB URI
+// ======================================================
+
 function getMongoUri() {
-  const mongoUri = process.env.MONGO_URI_DIRECT?.trim() || process.env.MONGO_URI?.trim()
+  const mongoUri =
+    process.env.MONGO_URI_DIRECT?.trim() ||
+    process.env.MONGO_URI?.trim()
+
   if (!mongoUri) {
-    throw new Error('MONGO_URI is missing from dzshop-api/.env.')
+    throw new Error(
+      'MONGO_URI is missing from dzshop-api/.env.'
+    )
   }
 
-  if (!/^mongodb(?:\+srv)?:\/\//.test(mongoUri)) {
-    throw new Error('MONGO_URI must start with mongodb:// or mongodb+srv://.')
+  if (
+    !/^mongodb(?:\+srv)?:\/\//.test(mongoUri)
+  ) {
+    throw new Error(
+      'MONGO_URI must start with mongodb:// or mongodb+srv://.'
+    )
   }
 
   return mongoUri
 }
 
+// ======================================================
+// ROOT
+// ======================================================
+
 app.get('/', (req, res) => {
-  res.json({ message: 'API DZShop en ligne' })
+  res.json({
+    message: 'API DZShop en ligne'
+  })
 })
 
-app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body
-  const normalizedEmail = email?.trim().toLowerCase()
+// ======================================================
+// LOGIN
+// ======================================================
 
-  if (!normalizedEmail || !password || password.length < 6) {
-    return res.status(401).json({ message: 'Email ou mot de passe incorrect.' })
+app.post('/api/auth/login', async (req, res) => {
+  const {
+    email,
+    password
+  } = req.body
+
+  const normalizedEmail =
+    email?.trim().toLowerCase()
+
+  if (
+    !normalizedEmail ||
+    !password ||
+    password.length < 6
+  ) {
+    return res.status(401).json({
+      message:
+        'Email ou mot de passe incorrect.'
+    })
   }
 
   try {
-    const account = await User.findOne({ email: normalizedEmail }).select('+password')
-    if (!account || !User.verifyPassword(password, account.password)) {
-      return res.status(401).json({ message: 'Email ou mot de passe incorrect.' })
+    const account = await User.findOne({
+      email: normalizedEmail
+    }).select('+password')
+
+    if (
+      !account ||
+      !User.verifyPassword(
+        password,
+        account.password
+      )
+    ) {
+      return res.status(401).json({
+        message:
+          'Email ou mot de passe incorrect.'
+      })
     }
 
     const user = {
@@ -130,23 +290,56 @@ app.post('/api/auth/login', async (req, res) => {
       role: account.role
     }
 
-    return res.json({ user, token: createToken(user) })
+    return res.json({
+      user,
+      token: createToken(user)
+    })
   } catch (err) {
-    return res.status(500).json({ message: err.message })
+    return res.status(500).json({
+      message: err.message
+    })
   }
 })
 
-app.post('/api/auth/register', async (req, res) => {
-  const { name, nom, email, password, role } = req.body
-  const normalizedEmail = email?.trim().toLowerCase()
+// ======================================================
+// REGISTER
+// ======================================================
 
-  if (!(name || nom)?.trim() || !normalizedEmail || !password || password.length < 6) {
-    return res.status(400).json({ message: 'Informations d’inscription invalides.' })
+app.post('/api/auth/register', async (req, res) => {
+  const {
+    name,
+    nom,
+    email,
+    password,
+    role
+  } = req.body
+
+  const normalizedEmail =
+    email?.trim().toLowerCase()
+
+  if (
+    !(name || nom)?.trim() ||
+    !normalizedEmail ||
+    !password ||
+    password.length < 6
+  ) {
+    return res.status(400).json({
+      message:
+        'Informations d’inscription invalides.'
+    })
   }
 
   try {
-    const existingUser = await User.findOne({ email: normalizedEmail })
-    if (existingUser) return res.status(409).json({ message: 'Cette adresse email est déjà utilisée.' })
+    const existingUser = await User.findOne({
+      email: normalizedEmail
+    })
+
+    if (existingUser) {
+      return res.status(409).json({
+        message:
+          'Cette adresse email est déjà utilisée.'
+      })
+    }
 
     const createdUser = await User.create({
       name: (name || nom).trim(),
@@ -163,51 +356,106 @@ app.post('/api/auth/register', async (req, res) => {
       role: createdUser.role
     }
 
-    return res.status(201).json({ user, token: createToken(user) })
+    return res.status(201).json({
+      user,
+      token: createToken(user)
+    })
   } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ message: 'Cette adresse email est déjà utilisée.' })
-    return res.status(400).json({ message: err.message })
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message:
+          'Cette adresse email est déjà utilisée.'
+      })
+    }
+
+    return res.status(400).json({
+      message: err.message
+    })
   }
 })
 
+// ======================================================
+// GOOGLE AUTH
+// ======================================================
+
 app.post('/api/auth/google', async (req, res) => {
-  const { credential } = req.body
+  const {
+    credential
+  } = req.body
 
   if (!process.env.GOOGLE_CLIENT_ID) {
-    return res.status(503).json({ message: 'Google Authentication est indisponible.' })
+    return res.status(503).json({
+      message:
+        'Google Authentication est indisponible.'
+    })
   }
 
-  if (!credential || typeof credential !== 'string') {
-    return res.status(400).json({ message: 'Credential Google manquant.' })
+  if (
+    !credential ||
+    typeof credential !== 'string'
+  ) {
+    return res.status(400).json({
+      message:
+        'Credential Google manquant.'
+    })
   }
 
   try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
-    })
-    const payload = ticket.getPayload()
+    const ticket =
+      await googleClient.verifyIdToken({
+        idToken: credential,
+        audience:
+          process.env.GOOGLE_CLIENT_ID
+      })
 
-    if (!payload?.sub || !payload.email || !payload.email_verified) {
-      return res.status(401).json({ message: 'Le compte Google doit fournir un email vérifié.' })
+    const payload =
+      ticket.getPayload()
+
+    if (
+      !payload?.sub ||
+      !payload.email ||
+      !payload.email_verified
+    ) {
+      return res.status(401).json({
+        message:
+          'Le compte Google doit fournir un email vérifié.'
+      })
     }
 
-    const normalizedEmail = payload.email.trim().toLowerCase()
-    let account = await User.findOne({ googleId: payload.sub })
+    const normalizedEmail =
+      payload.email
+        .trim()
+        .toLowerCase()
+
+    let account =
+      await User.findOne({
+        googleId: payload.sub
+      })
 
     if (!account) {
-      account = await User.findOne({ email: normalizedEmail })
+      account =
+        await User.findOne({
+          email: normalizedEmail
+        })
+
       if (account) {
-        account.googleId = payload.sub
+        account.googleId =
+          payload.sub
+
         await account.save()
       }
     }
 
     if (!account) {
       account = await User.create({
-        name: payload.name?.trim() || normalizedEmail.split('@')[0],
+        name:
+          payload.name?.trim() ||
+          normalizedEmail.split('@')[0],
+
         email: normalizedEmail,
+
         googleId: payload.sub,
+
         role: 'client'
       })
     }
@@ -220,57 +468,160 @@ app.post('/api/auth/google', async (req, res) => {
       role: account.role
     }
 
-    return res.json({ user, token: createToken(user) })
+    return res.json({
+      user,
+      token: createToken(user)
+    })
   } catch {
-    return res.status(401).json({ message: 'Credential Google invalide ou expiré.' })
+    return res.status(401).json({
+      message:
+        'Credential Google invalide ou expiré.'
+    })
   }
 })
 
-app.use('/api/orders', orderRoutes)
-app.use('/api/users', userRoutes)
-app.use('/api/products', productRoutes)
-app.use('/api/vendor/products', vendorRouter)
-app.use('/api/upload', uploadRoutes)
-app.use('/api/admin', adminStatsRoutes)
+// ======================================================
+// ROUTES
+// ======================================================
 
-app.get('/api/me', requireAuth, async (req, res) => {
-  return res.json({ user: { id: req.user._id, email: req.user.email, role: req.user.role, name: req.user.name || req.user.nom } })
-})
+app.use(
+  '/api/orders',
+  orderRoutes
+)
+
+app.use(
+  '/api/users',
+  userRoutes
+)
+
+app.use(
+  '/api/products',
+  productRoutes
+)
+
+app.use(
+  '/api/vendor/products',
+  vendorRouter
+)
+
+app.use(
+  '/api/upload',
+  uploadRoutes
+)
+
+app.use(
+  '/api/admin',
+  adminStatsRoutes
+)
+
+// ======================================================
+// CURRENT USER
+// ======================================================
+
+app.get(
+  '/api/me',
+  requireAuth,
+  async (req, res) => {
+    return res.json({
+      user: {
+        id: req.user._id,
+        email: req.user.email,
+        role: req.user.role,
+        name:
+          req.user.name ||
+          req.user.nom
+      }
+    })
+  }
+)
+
+// ======================================================
+// START SERVER
+// ======================================================
 
 async function startServer() {
   try {
-    await mongoose.connect(getMongoUri())
-    console.log('MongoDB connecté ✅')
+    await mongoose.connect(
+      getMongoUri()
+    )
+
+    console.log(
+      'MongoDB connecté ✅'
+    )
+
     await migrateLegacyRoles()
+
     await ensureAdminUser()
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown MongoDB error.'
-    console.error(`MongoDB connection failed: ${message}`)
-    console.error('Server startup aborted.')
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unknown MongoDB error.'
+
+    console.error(
+      `MongoDB connection failed: ${message}`
+    )
+
+    console.error(
+      'Server startup aborted.'
+    )
+
     process.exitCode = 1
+
     return
   }
 
-  const port = Number.parseInt(process.env.PORT || '5000', 10)
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    console.error('Server startup aborted: PORT must be a valid number between 1 and 65535.')
+  const port =
+    Number.parseInt(
+      process.env.PORT || '5000',
+      10
+    )
+
+  if (
+    !Number.isInteger(port) ||
+    port < 1 ||
+    port > 65535
+  ) {
+    console.error(
+      'Server startup aborted: PORT must be a valid number between 1 and 65535.'
+    )
+
     process.exitCode = 1
+
     return
   }
 
-  const server = app.listen(port, () => {
-    console.log(`Serveur sur http://localhost:${port}`)
-  })
-
-  server.on('error', (error) => {
-    if (error.code === 'EADDRINUSE') {
-      console.error(`Server startup failed: port ${port} is already in use.`)
-      console.error('Stop the existing DZShop server or choose another PORT in .env; no process was terminated automatically.')
-    } else {
-      console.error(`Server startup failed: ${error.message}`)
+  const server = app.listen(
+    port,
+    () => {
+      console.log(
+        `Serveur sur http://localhost:${port}`
+      )
     }
-    process.exitCode = 1
-  })
+  )
+
+  server.on(
+    'error',
+    (error) => {
+      if (
+        error.code === 'EADDRINUSE'
+      ) {
+        console.error(
+          `Server startup failed: port ${port} is already in use.`
+        )
+
+        console.error(
+          'Stop the existing DZShop server or choose another PORT in .env; no process was terminated automatically.'
+        )
+      } else {
+        console.error(
+          `Server startup failed: ${error.message}`
+        )
+      }
+
+      process.exitCode = 1
+    }
+  )
 }
 
 startServer()

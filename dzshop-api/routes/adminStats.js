@@ -6,11 +6,24 @@ import { requireAdmin, requireAuth } from '../middleware/auth.js'
 
 const router = express.Router()
 
+// Les jours du graphique sont comptés à l'heure d'Alger, sur ton PC comme sur Render.
+// (Avant, le début des 7 jours était en heure locale mais les commandes étaient
+// rangées en heure UTC : les ventes du jour n'apparaissaient jamais sur ton PC.)
+const FUSEAU = 'Africa/Algiers'
+const UN_JOUR = 24 * 60 * 60 * 1000
+
+function jourAlger(date) {
+  // "en-CA" écrit les dates sous la forme 2026-10-03
+  return new Intl.DateTimeFormat('en-CA', { timeZone: FUSEAU }).format(date)
+}
+
 router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setHours(0, 0, 0, 0)
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+    const maintenant = Date.now()
+    // Les 7 jours affichés, du plus ancien à aujourd'hui (heure d'Alger).
+    const jours = Array.from({ length: 7 }, (_, index) => jourAlger(new Date(maintenant - (6 - index) * UN_JOUR)))
+    // On prend 8 jours de commandes pour être sûr de ne rien rater, puis on ne garde que les 7 jours affichés.
+    const debutRecherche = new Date(maintenant - 8 * UN_JOUR)
 
     const [
       totalUsers,
@@ -52,10 +65,10 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
         { $limit: 5 }
       ]),
       Order.aggregate([
-        { $match: { createdAt: { $gte: sevenDaysAgo }, statut: { $ne: 'Annulée' } } },
+        { $match: { createdAt: { $gte: debutRecherche }, statut: { $ne: 'Annulée' } } },
         {
           $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: FUSEAU } },
             commandes: { $sum: 1 },
             chiffreAffaire: { $sum: '$total' }
           }
@@ -65,10 +78,7 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
     ])
 
     const dailySalesByDate = new Map(dailySales.map((sale) => [sale._id, sale]))
-    const ventes7j = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(sevenDaysAgo)
-      date.setDate(sevenDaysAgo.getDate() + index)
-      const key = date.toISOString().slice(0, 10)
+    const ventes7j = jours.map((key) => {
       const sale = dailySalesByDate.get(key)
       return {
         date: key,
