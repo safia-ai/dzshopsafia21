@@ -1,4 +1,9 @@
+# Réglages lus automatiquement par Netlify : tu n'as rien à taper à la main.
 [build]
   base = "dzshop-admin-roles-update"
   command = "npm run build"
   publish = "dist"
+
+# Même version de Node que sur ton PC et sur Render (Vite 8 a besoin de Node 20.19 minimum).
+[build.environment]
+  NODE_VERSION = "22"
